@@ -1,71 +1,62 @@
 import cv2
 import numpy as np
-import mediapipe as mp
 import tensorflow as tf
+import mediapipe as mp
+from collections import deque, Counter
 
-# Load the trained LSTM model
-model = tf.keras.models.load_model("gesture_lstm_model.h5")
+# Load the Trained Model
+model = tf.keras.models.load_model("dataset/gesture_lstm_model.h5")
 
-# Load gesture labels
-gesture_labels = ["Good Morning", "Good Afternoon", "Good Evening"]  # Update with your gestures
-
-# Initialize MediaPipe Hands
+# Initialize Mediapipe
 mp_hands = mp.solutions.hands
-hands = mp_hands.Hands(max_num_hands=2, min_detection_confidence=0.7, min_tracking_confidence=0.7)
+hands = mp_hands.Hands(static_image_mode=False, max_num_hands=1, min_detection_confidence=0.7, min_tracking_confidence=0.7)
 mp_draw = mp.solutions.drawing_utils
 
-# Start webcam capture
-cap = cv2.VideoCapture(0)
+# Gesture Labels
+gesture_labels = {0: "good morning", 1: "good afternoon", 2: "good evening"}
 
-# Store last 30 frames for prediction
-sequence = []
+# **Create a Buffer to Store 30 Frames**
+frame_buffer = deque(maxlen=30)  # Stores up to 30 frames
+
+# Open Webcam
+cap = cv2.VideoCapture(0)
 
 while cap.isOpened():
     ret, frame = cap.read()
     if not ret:
         break
 
-    # Flip image for mirror effect
-    frame = cv2.flip(frame, 1)
+    frame = cv2.flip(frame, 1)  # Flip horizontally
+    frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+    results = hands.process(frame_rgb)
 
-    # Convert to RGB (MediaPipe requirement)
-    rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-    results = hands.process(rgb_frame)
-
-    hand_landmarks = []
+    # Process Hand Landmarks
     if results.multi_hand_landmarks:
-        for hand_landmark in results.multi_hand_landmarks:
-            mp_draw.draw_landmarks(frame, hand_landmark, mp_hands.HAND_CONNECTIONS)
+        for hand_landmarks in results.multi_hand_landmarks:
+            landmarks = []
+            for lm in hand_landmarks.landmark:
+                landmarks.append([lm.x, lm.y, lm.z])  # Extract x, y, z values
 
-            # Extract landmark coordinates
-            for lm in hand_landmark.landmark:
-                hand_landmarks.extend([lm.x, lm.y, lm.z])
+            landmarks = np.array(landmarks).flatten()  # Flatten to shape (63,)
+            frame_buffer.append(landmarks)  # Store in buffer
 
-    # Ensure 21 keypoints x 3 (x, y, z) = 63 features
-    if len(hand_landmarks) == 63:
-        sequence.append(hand_landmarks)
-        if len(sequence) > 30:  # Keep only the last 30 frames
-            sequence.pop(0)
+            # **Only Predict When We Have 30 Frames**
+            if len(frame_buffer) == 30:
+                input_sequence = np.array(frame_buffer).reshape(1, 30, 63)  # Reshape for LSTM
+                prediction = model.predict(input_sequence)
+                predicted_label = np.argmax(prediction)
 
-    # If we have 30 frames, make a prediction
-    if len(sequence) == 30:
-        input_data = np.expand_dims(sequence, axis=0)  # Reshape to (1, 30, 63)
-        prediction = model.predict(input_data)
-        predicted_class = np.argmax(prediction)
+                # Display Gesture
+                gesture_text = f"Gesture: {gesture_labels[predicted_label]}"
+                cv2.putText(frame, gesture_text, (20, 50), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 3)
 
-        # Display the predicted gesture
-        text = f"Gesture: {gesture_labels[predicted_class]}"
-        cv2.putText(frame, text, (20, 70), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 3)
+            # Draw Landmarks
+            mp_draw.draw_landmarks(frame, hand_landmarks, mp_hands.HAND_CONNECTIONS)
 
-    # Show the webcam feed
     cv2.imshow("Real-Time Gesture Recognition", frame)
 
-    # Exit when 'q' is pressed
-    if cv2.waitKey(10) & 0xFF == ord('q'):
+    if cv2.waitKey(1) & 0xFF == ord('q'):  # Press 'q' to exit
         break
-
-from sklearn.metrics import classification_report
-print(classification_report(y_test, predicted_classes))
 
 cap.release()
 cv2.destroyAllWindows()
