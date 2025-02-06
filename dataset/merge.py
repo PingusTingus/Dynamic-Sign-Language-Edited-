@@ -1,33 +1,51 @@
 import numpy as np
+import glob
 import os
-from collections import Counter
 
-# Gesture Labels (Make sure this matches what you used in `capture.py`)
-gesture_labels = {0: "good morning", 1: "good afternoon", 2: "good evening"}
+# Path to dataset folder
+dataset_path = "dataset/"
 
-# Initialize dataset arrays
-X, y = [], []
+# Get all gesture files
+gesture_files = glob.glob(os.path.join(dataset_path, "gesture_*.npy"))
+data = []
+labels = []
 
-for label, gesture_name in gesture_labels.items():
-    filename = f"dataset/gesture_{gesture_name}.npy"
+# Assign a unique label to each gesture file
+gesture_label_map = {gesture_file.split("/")[-1].replace("gesture_", "").replace(".npy", ""): i
+                     for i, gesture_file in enumerate(gesture_files)}
 
-    if os.path.exists(filename):
-        data = np.load(filename)
-        X.append(data)  # Append gesture samples
-        y.append(np.full((data.shape[0],), label))  # Assign labels
+print("Gesture Label Mapping:", gesture_label_map)
 
-        print(f"✅ Loaded '{gesture_name}' - {data.shape}")
-    else:
-        print(f"⚠️ Warning: {filename} not found!")
+# Sliding window parameters
+frame_length = 30  # Number of frames per sample
+stride = 5  # Overlapping step size
+
+for gesture_file in gesture_files:
+    gesture_name = gesture_file.split("/")[-1].replace("gesture_", "").replace(".npy", "")
+    gesture_data = np.load(gesture_file)
+    num_frames = len(gesture_data)
+
+    # Skip files that have fewer than 30 frames (to avoid errors)
+    if num_frames < frame_length:
+        print(f"⚠ Warning: Skipping {gesture_name} - Only {num_frames} frames available (Need 30).")
+        continue
+
+    # Apply sliding window to create overlapping samples
+    for i in range(0, num_frames - frame_length + 1, stride):
+        sample = gesture_data[i : i + frame_length]  # Get a block of 30 frames
+        data.append(sample)
+        labels.append(gesture_label_map[gesture_name])
+
+        # Debug: Print how many samples are generated per gesture
+        if i == 0:
+            print(f"✅ Added samples for {gesture_name}: {num_frames // stride} samples")
 
 # Convert to NumPy arrays
-X = np.vstack(X)  # Merge all gesture data
-y = np.hstack(y)  # Merge labels
+X = np.array(data)
+y = np.array(labels)
 
-# Save the merged dataset
+# Save the correctly formatted dataset
 np.save("dataset/X.npy", X)
 np.save("dataset/y.npy", y)
 
-# Print label distribution
-print(f"🎯 Dataset Created - X shape: {X.shape}, y shape: {y.shape}")
-print(f"📊 Label distribution: {Counter(y)}")
+print(f"✅ Dataset merged successfully! Final shapes: X={X.shape}, y={y.shape}")

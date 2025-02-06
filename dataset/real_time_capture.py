@@ -13,7 +13,7 @@ hands = mp_hands.Hands(static_image_mode=False, max_num_hands=1, min_detection_c
 mp_draw = mp.solutions.drawing_utils
 
 # Gesture Labels
-gesture_labels = {0: "good morning", 1: "good afternoon", 2: "good evening"}
+gesture_labels = {0: "hello", 1: "help", 2: "i'm sick"}
 
 # **Create a Buffer to Store 30 Frames**
 frame_buffer = deque(maxlen=30)  # Stores up to 30 frames

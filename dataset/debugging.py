@@ -1,17 +1,11 @@
-import cv2
+import numpy as np
+import glob
+import os
 
-cap = cv2.VideoCapture(0)  # Open default camera
+dataset_path = "dataset/"
+gesture_files = glob.glob(os.path.join(dataset_path, "gesture_*.npy"))
 
-while True:
-    ret, frame = cap.read()
-    if not ret:
-        print("⚠ Error: Cannot access the camera.")
-        break
-
-    cv2.imshow("Webcam Test", frame)
-
-    if cv2.waitKey(1) & 0xFF == ord('q'):
-        break
-
-cap.release()
-cv2.destroyAllWindows()
+for gesture_file in gesture_files:
+    gesture_name = gesture_file.split("/")[-1].replace("gesture_", "").replace(".npy", "")
+    gesture_data = np.load(gesture_file)
+    print(f"📝 Gesture: {gesture_name} - Frames: {len(gesture_data)}")

@@ -8,8 +8,8 @@ import seaborn as sns
 model = tf.keras.models.load_model("dataset/gesture_lstm_model.h5")
 
 # Load Test Data
-X_test = np.load("dataset/X_augmented.npy")
-y_test = np.load("dataset/y_augmented.npy")
+X_test = np.load("dataset/X.npy")
+y_test = np.load("dataset/y.npy")
 
 # Reshape X_test for LSTM
 X_test = X_test.reshape(X_test.shape[0], 30, 63)
@@ -25,7 +25,7 @@ print(classification_report(y_test, y_pred_classes))
 # Confusion Matrix
 cm = confusion_matrix(y_test, y_pred_classes)
 plt.figure(figsize=(6, 5))
-sns.heatmap(cm, annot=True, cmap="Blues", fmt="d", xticklabels=["Morning", "Afternoon", "Evening"], yticklabels=["Morning", "Afternoon", "Evening"])
+sns.heatmap(cm, annot=True, cmap="Blues", fmt="d", xticklabels=["hello", "help", "i'm sick"], yticklabels=["hello", "help", "i'm sick"])
 plt.xlabel("Predicted")
 plt.ylabel("Actual")
 plt.title("Confusion Matrix")
