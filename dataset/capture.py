@@ -4,26 +4,28 @@ import mediapipe as mp
 import tkinter as tk
 from tkinter import ttk
 from PIL import Image, ImageTk
-import time
 import os
 import threading
-from collections import deque
+import time
+from tensorflow.keras.preprocessing.sequence import pad_sequences  # Import padding function
 
 # Initialize Mediapipe Hands
 mp_hands = mp.solutions.hands
-hands = mp_hands.Hands(static_image_mode=False, max_num_hands=2,  # Allow two hands
-                       min_detection_confidence=0.7, min_tracking_confidence=0.7)
+hands = mp_hands.Hands(static_image_mode=False, max_num_hands=2,
+                       min_detection_confidence=0.5, min_tracking_confidence=0.5)
 mp_draw = mp.solutions.drawing_utils
 
 # Global Variables
 capturing = False
 frames = []
-frame_count = 30  # Number of frames per gesture
-last_landmark = None
-capture_active = False
-no_hands_start_time = None  # Timer for stopping capture when no hands detected
+dataset_path = "dataset/"
+no_hands_start_time = None  # Timer for stopping capture when hands disappear
 hand_presence_buffer = 1  # Time (in seconds) to wait before stopping capture
-motion_window = deque(maxlen=5)  # Stores last 5 motion values
+gesture_name = None  # Stores current gesture name
+
+# Ensure dataset directory exists
+if not os.path.exists(dataset_path):
+    os.makedirs(dataset_path)
 
 # Initialize Tkinter UI
 root = tk.Tk()
@@ -45,105 +47,86 @@ gesture_name_var = tk.StringVar()
 gesture_name_entry = ttk.Entry(root, textvariable=gesture_name_var, font=("Arial", 12), width=20)
 gesture_name_entry.pack(pady=5)
 
-start_button = ttk.Button(root, text="Start Capture", state=tk.NORMAL)
-start_button.pack(pady=10)
-
-status_label = tk.Label(root, text="Status: Waiting...", font=("Arial", 14, "bold"), bg="white", fg="black")
+status_label = tk.Label(root, text="Status: Waiting for Hand...", font=("Arial", 14, "bold"), bg="white", fg="black")
 status_label.pack(pady=10)
 
-# Function to Capture Gesture (Manually Started)
+# Function to Start Capture Automatically
 def start_capture():
-    global capturing, frames, no_hands_start_time, motion_window
+    global capturing, frames, gesture_name
+    if capturing:
+        return  # Avoid starting again if already capturing
+
+    gesture_name = gesture_name_var.get().strip()
+    if not gesture_name:
+        status_label.config(text="Error: Enter Gesture Name!", fg="red")
+        return
+
     capturing = True
     frames = []
-    no_hands_start_time = None  # Reset timer
-    motion_window.clear()  # Reset motion window
-    start_button.config(state=tk.DISABLED)
     status_label.config(text="Status: Recording...", fg="red")
-    print("🟢 Capture started... Waiting for movement.")
+    print("🟢 Capture started... Recording entire gesture.")
 
-# Function to Stop Gesture Capture (Stops Only After Both Hands Are Gone for Buffer Time)
+# Function to Stop Capture Automatically
 def stop_capture():
     global capturing
+    if not capturing:
+        return  # Prevent stopping if not capturing
+
     capturing = False
-    start_button.config(state=tk.NORMAL)
-    status_label.config(text="Status: Done!", fg="green")
-    print("🛑 Capture stopped.")
+    status_label.config(text="Status: Gesture Recorded!", fg="green")
+    print(f"🛑 Capture stopped. Recorded {len(frames)} frames.")
 
     # Save Data
-    gesture_name = gesture_name_var.get().strip()
     if gesture_name:
         save_gesture(gesture_name)
     else:
         status_label.config(text="Error: Enter Gesture Name!", fg="red")
 
-# Function to Save Gesture Data (Auto-Generates `.npy` Files)
+# Function to Save Entire Gesture
 def save_gesture(gesture_name):
     global frames
-    dataset_path = f"dataset/gesture_{gesture_name}.npy"
+    dataset_file = f"{dataset_path}gesture_{gesture_name}.npy"
 
-    # ✅ Prevent saving empty captures
-    if len(frames) == 0:
-        print(f"⚠ Warning: No frames recorded for gesture '{gesture_name}'. Skipping save.")
-        status_label.config(text=f"⚠ No frames recorded! Try again.", fg="red")
-        return  # Stop execution to prevent errors
+    if len(frames) < 10:  # Ignore very short captures
+        print(f"⚠ Not enough frames ({len(frames)}) to create a valid sample. Discarding.")
+        return
 
-    if not os.path.exists("dataset"):
-        os.makedirs("dataset")  # Create dataset folder if it doesn't exist
+    frames = np.array(frames)
 
-    if os.path.exists(dataset_path):
-        existing_data = np.load(dataset_path)
-
-        # ✅ Prevent merging empty arrays
-        if existing_data.shape[0] == 0:
-            print(f"⚠ Warning: Existing gesture file '{gesture_name}' is empty. Overwriting with new data.")
-            np.save(dataset_path, frames)
-        else:
-            frames = np.vstack((existing_data, frames))  # Append new data
+    # Check if file exists and load existing data
+    if os.path.exists(dataset_file):
+        existing_data = np.load(dataset_file, allow_pickle=True)
+        existing_data = list(existing_data)
+        existing_data.append(frames)
     else:
-        print(f"📂 Creating new dataset file for: {gesture_name}")
+        existing_data = [frames]
 
-    np.save(dataset_path, frames)
+    # Pad all sequences to match the longest sequence
+    max_length = max(len(seq) for seq in existing_data)
+    padded_data = pad_sequences(existing_data, maxlen=max_length, padding="post", dtype="float32")
+
+    # Save the padded dataset
+    np.save(dataset_file, padded_data)
+
     status_label.config(text=f"✅ Gesture '{gesture_name}' saved!", fg="blue")
-    print(f"✅ Gesture '{gesture_name}' saved to {dataset_path}")
+    print(f"✅ Gesture '{gesture_name}' saved to {dataset_file} (Max Length: {max_length} frames)")
 
-
-# Function to Check Hand Movement
-def hand_moving(current_landmark):
-    global last_landmark, motion_window
-
-    if last_landmark is None:
-        last_landmark = current_landmark
-        return True  # Assume movement at start
-
-    # Compute Euclidean distance between last and current frame
-    movement = np.linalg.norm(np.array(current_landmark) - np.array(last_landmark))
-    last_landmark = current_landmark
-
-    # Store movement in rolling window
-    motion_window.append(movement)
-
-    # Compute average movement over last 5 frames
-    avg_movement = sum(motion_window) / len(motion_window)
-
-    return avg_movement > 0.005  # Threshold to determine if the hand is moving
-
-# Function to Update Tkinter Video Feed in a Separate Thread
+# Function to Update Video Feed & Detect Hands Automatically
 def update_video():
-    global capturing, frames, capture_active, no_hands_start_time
+    global capturing, frames, no_hands_start_time
 
     while True:
         ret, frame = cap.read()
         if not ret:
             print("⚠ Error: Cannot read frame from the camera.")
-            root.after(33, update_video)  # Retry after 33ms
+            root.after(33, update_video)
             return
 
         frame = cv2.flip(frame, 1)
         frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
         results = hands.process(frame_rgb)
 
-        hand_detected = False  # Reset flag each frame
+        hand_detected = False
         num_hands_detected = 0
 
         if results.multi_hand_landmarks:
@@ -152,45 +135,43 @@ def update_video():
                 hand_detected = True
                 num_hands_detected += 1
 
-                # Extract Landmarks
+        if hand_detected:
+            print(f"✋ Hand detected! ({num_hands_detected} hand(s) visible)")
+            status_label.config(text="Status: Hand Detected! Recording...", fg="orange")
+
+            if not capturing:
+                start_capture()  # Auto-start when hand is detected
+
+            # Extract and store landmarks if capturing
+            if capturing:
                 landmarks = [[lm.x, lm.y, lm.z] for lm in hand_landmarks.landmark]
                 flattened_landmarks = np.array(landmarks).flatten()
+                frames.append(flattened_landmarks)
+                print(f"📸 Frame captured. Total frames: {len(frames)}")
 
-                if capturing:
-                    if hand_moving(flattened_landmarks):
-                        frames.append(flattened_landmarks)
-
-        # If both hands disappear, start a buffer timer before stopping capture
-        if num_hands_detected == 0:
+        # If hands disappear, start countdown to stop capture
+        if not hand_detected:
             if capturing:
                 if no_hands_start_time is None:
-                    no_hands_start_time = time.time()  # Start countdown
-                elif time.time() - no_hands_start_time > hand_presence_buffer:  # Stop if both hands are gone for buffer time
+                    no_hands_start_time = time.time()
+                elif time.time() - no_hands_start_time > hand_presence_buffer:
                     print(f"🛑 No hands detected for {hand_presence_buffer} seconds. Stopping capture.")
                     stop_capture()
+                    status_label.config(text="Status: Waiting for Hand...", fg="black")
             else:
-                no_hands_start_time = None  # Reset timer when not capturing
-
-        # Print hand detected message only once per detection
-        if hand_detected and not capture_active:
-            print(f"✋ Hand(s) detected! ({num_hands_detected} hand(s) visible)")
-            capture_active = True
+                no_hands_start_time = None  # Reset timer if not capturing
 
         # Convert OpenCV frame to Tkinter-compatible format
         img = Image.fromarray(frame_rgb)
-        img = img.resize((500, 350))  # Resize for display
+        img = img.resize((500, 350))
         img_tk = ImageTk.PhotoImage(image=img)
 
-        # FORCE UI UPDATE
-        video_label.img_tk = img_tk  # Prevent garbage collection
+        video_label.img_tk = img_tk
         video_label.config(image=img_tk)
         root.update_idletasks()
         root.update()
 
-# Bind UI Button to Start Capture
-start_button.config(command=start_capture)
-
-# Start Video Feed in a Separate Thread to Prevent Freezing
+# Start Video Feed in a Separate Thread
 video_thread = threading.Thread(target=update_video, daemon=True)
 video_thread.start()
 
