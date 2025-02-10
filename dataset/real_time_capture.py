@@ -9,7 +9,7 @@ from collections import deque, Counter
 model = tf.keras.models.load_model("gesture_model.h5")
 
 # Define Gesture Labels
-gesture_labels = ["danger", "hello", "help", "I", "sick", "stop"]
+gesture_labels = ["danger", "hello", "help", "I", "sick", "stop", "no", "yes", "thank you", "what", "when", "where", "which", "why"]
 
 # Initialize Mediapipe
 mp_hands = mp.solutions.hands
