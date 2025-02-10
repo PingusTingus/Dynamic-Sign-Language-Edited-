@@ -12,7 +12,7 @@ hands = mp_hands.Hands(static_image_mode=False, max_num_hands=2,
                        min_detection_confidence=0.5, min_tracking_confidence=0.5)
 
 # ✅ Dataset Paths
-dataset_path = r"C:\Users\Admin\Downloads\FSL-105 A dataset for recognizing 105 Filipino sign language videos\FSL-105 A dataset for recognizing 105 Filipino sign language videos\clips"
+dataset_path = r"/Users/ejdt22/Desktop/FSL-105 A dataset for recognizing 105 Filipino sign language videos/clips"
 output_path = "dataset/"
 os.makedirs(output_path, exist_ok=True)
 
@@ -67,7 +67,7 @@ for gesture_name in new_gestures:
     print(f"📌 Extracting '{gesture_name}' ({len(video_files)} videos)...")
 
     # ✅ Use tqdm for Progress Bar
-    for video_file in tqdm(video_files, desc=f"Processing {gesture_name}"):
+    for video_file in tqdm(video_files, desc=f"Processing {gesture_name}", colour="green"):
         sequence = extract_landmarks_from_video(video_file)
         if sequence is not None:
             gesture_sequences.append(sequence)
