@@ -1,74 +1,79 @@
+import os
+import glob
 import numpy as np
 import tensorflow as tf
 from tensorflow.keras.models import Sequential
-from tensorflow.keras.layers import LSTM, Dense, Dropout, Masking
+from tensorflow.keras.layers import LSTM, Dense, Dropout, Bidirectional, BatchNormalization, Conv1D
+from tensorflow.keras.optimizers import Adam
+from tensorflow.keras.callbacks import ReduceLROnPlateau
 from tensorflow.keras.utils import to_categorical
 from tensorflow.keras.preprocessing.sequence import pad_sequences
-import glob
-import os
+from sklearn.model_selection import train_test_split
 
-# ✅ **Load Dataset**
+# ✅ Load Preprocessed Dataset
 dataset_path = "dataset/"
 gesture_files = glob.glob(os.path.join(dataset_path, "gesture_*.npy"))
 
-# 🔹 **Gesture Label Mapping**
-gesture_labels = {}
-label_counter = 0
-
-# Create a mapping from gesture names to numerical labels
-for file in gesture_files:
-    gesture_name = os.path.basename(file).replace("gesture_", "").replace(".npy", "")
-    if gesture_name not in gesture_labels:
-        gesture_labels[gesture_name] = label_counter
-        label_counter += 1
-
-print("\n📂 Label Mapping:")
-print(gesture_labels)
+gesture_labels = {os.path.basename(f).replace("gesture_", "").replace(".npy", ""): i for i, f in enumerate(gesture_files)}
+num_classes = len(gesture_labels)
 
 X, y = [], []
-
-# ✅ **Load Data**
 for file in gesture_files:
     gesture_name = os.path.basename(file).replace("gesture_", "").replace(".npy", "")
     label = gesture_labels[gesture_name]
-
     data = np.load(file, allow_pickle=True)
+
     for sample in data:
         X.append(sample)
         y.append(label)
 
-# Convert to NumPy Arrays
-X = np.array(X, dtype=object)
+X = np.array(X, dtype="object")  # ✅ Convert to object for proper padding
 y = np.array(y)
 
-# ✅ **Apply Padding to Ensure Equal Frame Lengths**
-X_padded = pad_sequences(X, padding="post", dtype="float32")
+# ✅ Apply Padding
+MAX_FRAMES = 50  # Keep consistent with extraction script
+X_padded = pad_sequences(X, maxlen=MAX_FRAMES, padding="post", dtype="float32")
 
-print(f"\n✅ Training Data Shape: {X_padded.shape}")
-print(f"✅ Labels Shape: {y.shape}")
-
-# ✅ **Convert Labels to Categorical**
-num_classes = len(gesture_labels)
+# ✅ Convert Labels to Categorical
 y_categorical = to_categorical(y, num_classes=num_classes)
 
-# ✅ **Define LSTM Model**
+# ✅ Split Data (Train 80% / Test 20%)
+X_train, X_test, y_train, y_test = train_test_split(X_padded, y_categorical, test_size=0.2, random_state=42)
+
+# ✅ Define CNN-LSTM Model
 model = Sequential([
-    Masking(mask_value=0.0, input_shape=(X_padded.shape[1], X_padded.shape[2])),
-    LSTM(128, return_sequences=True, activation='relu'),
-    Dropout(0.2),
-    LSTM(64, activation='relu'),
-    Dropout(0.2),
-    Dense(64, activation='relu'),
-    Dense(num_classes, activation='softmax')  # Output layer with num_classes categories
+    Conv1D(64, kernel_size=3, activation="relu", input_shape=(MAX_FRAMES, X_train.shape[2])),
+    BatchNormalization(),
+    Dropout(0.3),
+
+    Conv1D(128, kernel_size=3, activation="relu"),
+    BatchNormalization(),
+    Dropout(0.3),
+
+    Bidirectional(LSTM(128, return_sequences=True, activation="relu")),
+    BatchNormalization(),
+    Dropout(0.3),
+
+    LSTM(64, activation="relu"),
+    BatchNormalization(),
+    Dropout(0.3),
+
+    Dense(64, activation="relu"),
+    Dense(num_classes, activation="softmax")
 ])
 
-# ✅ **Compile Model**
-model.compile(optimizer='adam', loss='categorical_crossentropy', metrics=['accuracy'])
+# ✅ Compile Model with Optimized Learning Rate
+optimizer = Adam(learning_rate=0.001)
+model.compile(optimizer=optimizer, loss='categorical_crossentropy', metrics=['accuracy'])
 
-# ✅ **Train Model**
+# ✅ Learning Rate Adjustment
+lr_reduction = ReduceLROnPlateau(monitor='val_loss', patience=5, factor=0.5, min_lr=1e-6, verbose=1)
+
+# ✅ Train Model
 print("\n🚀 Training Model...")
-history = model.fit(X_padded, y_categorical, epochs=50, batch_size=16, validation_split=0.2)
+history = model.fit(X_train, y_train, epochs=100, batch_size=16, validation_data=(X_test, y_test),
+                    callbacks=[lr_reduction])
 
-# ✅ **Save Model**
+# ✅ Save Model
 model.save("dataset/gesture_model.h5")
 print("\n✅ Model Training Completed and Saved!")
