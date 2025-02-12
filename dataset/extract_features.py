@@ -12,7 +12,7 @@ hands = mp_hands.Hands(static_image_mode=False, max_num_hands=2,
                        min_detection_confidence=0.5, min_tracking_confidence=0.5)
 
 # ✅ Dataset Paths
-dataset_path = r"C:\Users\Admin\Downloads\FSL-105 A dataset for recognizing 105 Filipino sign language videos\FSL-105 A dataset for recognizing 105 Filipino sign language videos\clips"
+dataset_path = r"C:\Users\HP\Documents\PR\Bread\clips"
 output_path = "dataset/"
 os.makedirs(output_path, exist_ok=True)
 
