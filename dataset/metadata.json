@@ -1,0 +1,51 @@
+{
+    "gestures": [
+        {
+            "id": "77",
+            "label": "WHITE",
+            "safe_label": "white",
+            "category": "COLOR"
+        },
+        {
+            "id": "56",
+            "label": "GRANDFATHER",
+            "safe_label": "grandfather",
+            "category": "FAMILY"
+        },
+        {
+            "id": "92",
+            "label": "LONGANISA",
+            "safe_label": "longanisa",
+            "category": "FOOD"
+        },
+        {
+            "id": "82",
+            "label": "VIOLET",
+            "safe_label": "violet",
+            "category": "COLOR"
+        },
+        {
+            "id": "73",
+            "label": "GREEN",
+            "safe_label": "green",
+            "category": "COLOR"
+        }
+    ],
+    "extraction_date": "2025-03-03 06:42:20",
+    "num_gestures": 5,
+    "max_frames": 50,
+    "id_to_label": {
+        "77": "WHITE",
+        "56": "GRANDFATHER",
+        "92": "LONGANISA",
+        "82": "VIOLET",
+        "73": "GREEN"
+    },
+    "label_to_file": {
+        "WHITE": "white.npy",
+        "GRANDFATHER": "grandfather.npy",
+        "LONGANISA": "longanisa.npy",
+        "VIOLET": "violet.npy",
+        "GREEN": "green.npy"
+    }
+}

@@ -1,0 +1,16 @@
+{
+    "gestures": [
+        "green",
+        "violet",
+        "grandfather",
+        "white",
+        "longanisa"
+    ],
+    "accuracy": 1.0,
+    "training_date": "2025-03-03 07:00:13",
+    "model_type": "BiLSTM",
+    "input_shape": [
+        50,
+        63
+    ]
+}
