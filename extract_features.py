@@ -19,7 +19,7 @@ import random
 import re
 
 # --- Configuration ---
-DATASET_ROOT = "/Users/chiecasuco/Downloads/FSL SLR Dataset"  # Root folder of the dataset
+DATASET_ROOT = r"C:\Users\Admin\OneDrive\Desktop\FSL SLR Dataset"  # Root folder of the dataset
 CLIPS_PATH = os.path.join(DATASET_ROOT, "clips")
 LABELS_PATH = os.path.join(DATASET_ROOT, "labels.csv")
 OUTPUT_PATH = "dataset/"
@@ -27,7 +27,7 @@ MAX_FRAMES = 50
 PROCESS_EXISTING = True  # Set to False to skip already processed gestures
 SAMPLE_RATE = 2  # Process every Nth frame
 RESIZE_RESOLUTION = (320, 240)  # Lower resolution for processing speed
-NUM_GESTURES = 5  # Process exactly 5 gestures
+NUM_GESTURES = 10  # Process exactly 5 gestures
 RANDOM_SELECT = True  # Select gestures randomly
 
 print("=" * 70)

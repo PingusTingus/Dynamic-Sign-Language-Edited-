@@ -1,10 +1,19 @@
 {
     "gestures": [
-        "green",
-        "violet",
+        "correct",
+        "good_evening",
         "grandfather",
+        "green",
+        "hello",
+        "july",
+        "longanisa",
+        "march",
+        "see_you_tomorrow",
+        "tea",
+        "violet",
         "white",
-        "longanisa"
+        "wrong",
+        "yellow"
     ],
     "accuracy": 1.0,
     "training_date": "2025-03-03 07:00:13",
