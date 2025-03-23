@@ -3,7 +3,7 @@
   <component name="WebServers">
     <option name="servers">
       <webServer id="58c0a23c-0065-4e04-b72e-f1aa408836b3" name="192.168.76.54">
-        <fileTransfer rootFolder="/home/juwancasuco" accessType="SFTP" host="192.168.142.74" port="22" sshConfigId="3e1e6415-fd72-4466-99cd-56e5a583db06" sshConfig="juwancasuco@192.168.142.74:22 password">
+        <fileTransfer rootFolder="/home/juwancasuco/Desktop/Capstone/models" accessType="SFTP" host="192.168.167.74" port="22" sshConfigId="5c7d0692-41b5-4b95-928d-1fe84bafadc1" sshConfig="juwancasuco@192.168.167.74:22 password">
           <advancedOptions>
             <advancedOptions dataProtectionLevel="Private" passiveMode="true" shareSSLContext="true" />
           </advancedOptions>
